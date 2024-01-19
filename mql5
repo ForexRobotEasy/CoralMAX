@@ -1,0 +1,78 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                                CoralMAX.mq5     |
+//|                        Copyright 2022, Forex Robot Easy Team     |
+//|                                          https://forexroboteasy.com|
+//+------------------------------------------------------------------+
+
+// Define input parameters
+input double EntryCondition1 = 1.5; // Example customizable entry condition
+input double EntryCondition2 = -0.5; // Example customizable entry condition
+input double MaxDrawdown = 10; // Maximum drawdown percentage
+
+// Define global variables
+double previousPrice = 0;
+bool tradeOpen = false;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Set initial values
+    previousPrice = 0;
+    tradeOpen = false;
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    double currentPrice = MarketInfo(Symbol(), MODE_BID);
+
+    // Check if entry conditions are met
+    if (currentPrice - previousPrice >= EntryCondition1 || currentPrice - previousPrice <= EntryCondition2)
+    {
+        // Check if trade is already open
+        if (!tradeOpen)
+        {
+            // Open trade
+            OrderSend(Symbol(), OP_BUY, 0.01, currentPrice, 0, 0, 0, 'CoralMAX', 0, 0, Green);
+            tradeOpen = true;
+        }
+    }
+
+    // Check if trade is in drawdown
+    if (tradeOpen && (currentPrice - OrderOpenPrice()) / OrderOpenPrice() * 100 >= MaxDrawdown)
+    {
+        // Scale in at specified spacing distance
+        double spacingDistance = 10.0; // Example spacing distance
+        double scaledVolume = NormalizeDouble(OrderLots() + spacingDistance, 2);
+
+        // Add additional position
+        OrderSend(Symbol(), OP_BUY, scaledVolume, currentPrice, 0, 0, 0, 'CoralMAX Drawdown', 0, 0, Green);
+    }
+
+    // Check if exit conditions are met
+    if (tradeOpen && (currentPrice - OrderOpenPrice()) / OrderOpenPrice() * 100 >= 5)
+    {
+        // Close trade
+        OrderClose(OrderTicket(), OrderLots(), currentPrice, 0, Red);
+        tradeOpen = false;
+    }
+
+    previousPrice = currentPrice;
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Close any remaining open trades
+    if (tradeOpen)
+        OrderClose(OrderTicket(), OrderLots(), MarketInfo(Symbol(), MODE_BID), 0, Red);
+}
